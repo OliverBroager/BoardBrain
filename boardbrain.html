@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoardBrain – AI Chat Prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #e7f0ff;
+      --panel: #ffffff;
+      --accent: #1f6bff;
+      --accent-dark: #0f3dbf;
+      --text: #0a1b3f;
+      --muted: #6f7ea7;
+      --border: #d6e2ff;
+      --sidebar: #041739;
+      --sidebar-highlight: rgba(255, 255, 255, 0.14);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 28px;
+      background: linear-gradient(120deg, #002b92, #1f6bff 65%, #64b5ff);
+      color: #fff;
+      font-size: 20px;
+      letter-spacing: 0.12em;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      text-transform: uppercase;
+    }
+    .app-shell {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+    .sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+    .sidebar-header {
+      padding: 20px 24px 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.8;
+    }
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .chat-list button {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: #fff;
+      text-align: left;
+      padding: 14px 24px;
+      font-size: 15px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    .chat-list button.active {
+      background: var(--sidebar-highlight);
+      border-left-color: var(--accent);
+    }
+    .sidebar-footer {
+      padding: 20px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sidebar-footer button {
+      border: none;
+      cursor: pointer;
+      border-radius: 999px;
+      font-weight: 600;
+      padding: 12px 16px;
+    }
+    .new-game-btn {
+      background: var(--accent);
+      color: #fff;
+    }
+    .settings-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .main-header {
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel);
+      box-shadow: 0 10px 25px rgba(31, 107, 255, 0.08);
+    }
+    .main-header strong {
+      font-size: 18px;
+    }
+    .main-header span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .main-header .controls button {
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 8px 14px;
+      margin-left: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px 120px;
+      background: linear-gradient(180deg, #f2f7ff 0%, #e7f0ff 100%);
+    }
+    .message {
+      max-width: 640px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+      box-shadow: 0 10px 20px rgba(15, 24, 44, 0.08);
+    }
+    .message.user {
+      background: #fff;
+      align-self: flex-end;
+      border-top-right-radius: 4px;
+      margin-left: auto;
+    }
+    .message.ai {
+      background: linear-gradient(135deg, #001f66, #1147c6);
+      color: #fff;
+      border-top-left-radius: 4px;
+    }
+    .composer {
+      position: absolute;
+      bottom: 0;
+      left: 260px;
+      right: 0;
+      padding: 18px 32px;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 16px;
+      transition: left 0.3s ease;
+    }
+    .sidebar.collapsed ~ .composer {
+      left: 0;
+    }
+    .composer input {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+    }
+    .composer button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0 24px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .toggle-sidebar {
+      border: none;
+      background: rgba(255, 255, 255, 0.2);
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px;
+      transition: opacity 0.2s ease;
+    }
+    .toggle-sidebar span {
+      display: block;
+      width: 100%;
+      height: 3px;
+      background: #ffffff;
+      border-radius: 999px;
+    }
+    .toggle-sidebar:hover {
+      opacity: 0.85;
+    }
+    .catan-board {
+      margin: 0 auto 28px;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .hex-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .hex {
+      width: 92px;
+      height: 106px;
+      clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 15px 25px rgba(3, 22, 54, 0.25);
+      position: relative;
+    }
+    .hex small {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    .resource-wood { background: linear-gradient(135deg, #3a8f3a, #0d501a); }
+    .resource-brick { background: linear-gradient(135deg, #c94832, #7c1f10); }
+    .resource-wheat { background: linear-gradient(135deg, #f8c43d, #d88b0a); color: #4e3203; text-shadow: none; }
+    .resource-sheep { background: linear-gradient(135deg, #5fd183, #1f8743); }
+    .resource-ore { background: linear-gradient(135deg, #9599a6, #404452); }
+    .resource-desert { background: linear-gradient(135deg, #f5e4ab, #d9bb62); color: #6b5011; text-shadow: none; }
+    .resource-water { background: linear-gradient(135deg, #5fc4ff, #0b5cc4); }
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 10, 18, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      width: min(540px, calc(100% - 32px));
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px 28px 32px;
+      box-shadow: 0 25px 45px rgba(15, 23, 42, 0.2);
+    }
+    .modal header {
+      background: transparent;
+      color: var(--text);
+      padding: 0;
+      margin-bottom: 12px;
+    }
+    .modal header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .game-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      background: #fafbff;
+    }
+    #gameResults {
+      max-height: 55vh;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .game-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+    .mode-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .mode-buttons button {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      background: #fff;
+      font-size: 14px;
+    }
+    .mode-buttons button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px 0;
+    }
+    @media (max-width: 900px) {
+      .sidebar {
+        position: absolute;
+        z-index: 999;
+        height: calc(100% - 58px);
+      }
+      .composer {
+        left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <button class="toggle-sidebar" id="sidebarToggle" aria-label="Toggle sidebar">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <h1>BoardBrain</h1>
+</header>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">Active Chats</div>
+    <div class="chat-list" id="chatList">
+      <!-- populated via JS -->
+    </div>
+    <div class="sidebar-footer">
+      <button class="new-game-btn new-game-trigger" id="newGameSidebar">+ New Game</button>
+      <button class="settings-btn">⚙ Settings</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <strong id="chatTitle">Catan · Strategy Chat</strong><br>
+        <span id="chatSubtitle">Ask anything about rules, trades, and winning paths.</span>
+      </div>
+      <div class="controls">
+        <button disabled>Guide</button>
+        <button disabled>Chat</button>
+        <button disabled>Setup</button>
+      </div>
+    </div>
+
+    <section class="chat-window" id="chatWindow">
+      <!-- messages injected via JS -->
+    </section>
+  </main>
+
+  <div class="composer">
+    <input type="text" placeholder="Ask a question about your game..." disabled>
+    <button disabled>Send</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <header>
+      <h2>Start a New Game Chat</h2>
+      <p>Search any board game and pick Guide, Chat, or Setup.</p>
+    </header>
+    <div class="search-box">
+      <input type="search" id="gameSearch" placeholder="Search board games...">
+    </div>
+    <div id="gameResults"></div>
+  </div>
+</div>
+
+<script>
+  const games = [
+    { name: "Catan", description: "Trade, build, and settle the island of Catan.", tags: ["strategy", "trading", "3-4 players"] },
+    { name: "Ticket to Ride", description: "Claim routes across the continent and connect cities.", tags: ["family", "routes", "2-5 players"] },
+    { name: "Pandemic", description: "Work together to stop global outbreaks.", tags: ["co-op", "strategy", "2-4 players"] },
+    { name: "Azul", description: "Draft beautiful tiles and craft mosaics.", tags: ["abstract", "family", "2-4 players"] },
+    { name: "7 Wonders", description: "Develop your civilization in just three ages.", tags: ["card drafting", "3-7 players"] },
+    { name: "Carcassonne", description: "Place tiles, build cities, and vie for French countryside.", tags: ["tile laying", "2-5 players"] },
+    { name: "Splendor", description: "Collect gems to attract Renaissance nobles.", tags: ["engine builder", "2-4 players"] },
+    { name: "Wingspan", description: "Create habitats for vibrant birds across ecosystems.", tags: ["engine builder", "1-5 players"] },
+    { name: "Terraforming Mars", description: "Compete to make Mars habitable.", tags: ["strategy", "card drafting"] },
+    { name: "Scythe", description: "Lead your faction in dieselpunk Europa.", tags: ["4X", "strategy"] },
+    { name: "Everdell", description: "Build a woodland city through the seasons.", tags: ["worker placement", "1-4 players"] },
+    { name: "Gloomhaven", description: "Epic cooperative dungeon campaign.", tags: ["co-op", "legacy"] },
+    { name: "Spirit Island", description: "Defend your island spirit against colonizers.", tags: ["co-op", "2-4 players"] },
+    { name: "Root", description: "Asymmetric woodland warfare.", tags: ["asymmetric", "2-6 players"] },
+    { name: "Brass: Birmingham", description: "Industrial revolution logistics showdown.", tags: ["economic", "2-4 players"] },
+    { name: "Dune: Imperium", description: "Blend deck-building with worker placement in Arrakis.", tags: ["deck building", "1-4 players"] },
+    { name: "Ark Nova", description: "Design a modern zoo with conservation focus.", tags: ["strategy", "1-4 players"] },
+    { name: "Clank!", description: "Push-your-luck dungeon diving with deck-building.", tags: ["deck building", "push your luck"] },
+    { name: "Sheriff of Nottingham", description: "Bluff and bribe through market gates.", tags: ["party", "3-6 players"] },
+    { name: "Codenames", description: "Guide your team to secret words before opponents.", tags: ["party", "4-8 players"] },
+    { name: "Betrayal at Baldur's Gate", description: "Explore, survive, and uncover the traitor.", tags: ["thematic", "3-6 players"] },
+    { name: "Heat: Pedal to the Metal", description: "Fast-paced card driven racing.", tags: ["racing", "1-6 players"] }
+  ];
+
+  const catanBoardLayout = [
+    [
+      { type: "brick", label: "Clay Fields", number: 5 },
+      { type: "sheep", label: "Pasture", number: 2 },
+      { type: "wheat", label: "Fields", number: 6 }
+    ],
+    [
+      { type: "wood", label: "Forest", number: 3 },
+      { type: "ore", label: "Mountains", number: 8 },
+      { type: "sheep", label: "Pasture", number: 10 },
+      { type: "brick", label: "Quarry", number: 9 }
+    ],
+    [
+      { type: "wheat", label: "Fields", number: 12 },
+      { type: "desert", label: "Desert", number: null },
+      { type: "wood", label: "Forest", number: 11 }
+    ],
+    [
+      { type: "ore", label: "Ridge", number: 4 },
+      { type: "sheep", label: "Pasture", number: 8 },
+      { type: "wheat", label: "Fields", number: 10 },
+      { type: "wood", label: "Forest", number: 3 }
+    ],
+    [
+      { type: "brick", label: "Clay Pit", number: 6 },
+      { type: "ore", label: "Mountains", number: 5 },
+      { type: "sheep", label: "Pasture", number: 11 }
+    ]
+  ];
+
+  const conversations = {
+    Catan: {
+      Guide: [
+        { role: "user", text: "Give me a quick refresher on how turns work." },
+        { role: "ai", text: "Each turn has three beats: 1) roll the dice and distribute resources, 2) trade with players or the bank, 3) build roads, settlements, or upgrades using resources in hand. You may also play one development card per turn, except Victory Point cards." },
+        { role: "user", text: "Any beginner traps?" },
+        { role: "ai", text: "Avoid clustering on one resource. Secure access to at least three different resources early, prioritize expanding before blocking others, and remember that longest road and largest army are worth two points each." }
+      ],
+      Chat: [
+        { role: "user", text: "I'm stuck with too much ore. What should I do?" },
+        { role: "ai", text: "Upgrade to cities or trade ore 2:1 if you own an ore harbor. Otherwise use ore to buy development cards—knights can unblock you and progress cards can swing tempo." },
+        { role: "user", text: "Is it worth racing for the longest road now?" },
+        { role: "ai", text: "Only if you can secure at least 5 uninterrupted segments. Check opponents’ road counts; if someone else is already at 4, you might invest those resources into settlements instead." }
+      ],
+      Setup: [
+        { role: "user", text: "Suggest a fair setup for four players." },
+        { role: "ai", text: "Place numbers to avoid clustering 6 and 8 together, spread resource types evenly, and ensure each port faces a complementary resource. Seat new players opposite experienced ones to balance trades." }
+      ]
+    },
+    "Ticket to Ride": {
+      Chat: [
+        { role: "user", text: "Keep or toss the long routes?" },
+        { role: "ai", text: "Keep them if they overlap naturally with medium routes you already have. Long routes offer big points but punish incompletion, so only keep them when you can complete two thirds of the path early." }
+      ]
+    }
+  };
+
+  const chatWindow = document.getElementById("chatWindow");
+  const chatTitle = document.getElementById("chatTitle");
+  const chatSubtitle = document.getElementById("chatSubtitle");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  const modalOverlay = document.getElementById("modalOverlay");
+  const gameResults = document.getElementById("gameResults");
+  const gameSearch = document.getElementById("gameSearch");
+  const chatList = document.getElementById("chatList");
+  const newGameButtons = Array.from(document.querySelectorAll(".new-game-trigger"));
+  let currentGame = "Catan";
+  let currentMode = "Chat";
+
+  function renderChatList() {
+    const chats = [
+      { game: "Catan", mode: "Chat" },
+      { game: "Ticket to Ride", mode: "Guide" },
+      { game: "Pandemic", mode: "Setup" },
+      { game: "Wingspan", mode: "Guide" },
+      { game: "Terraforming Mars", mode: "Chat" }
+    ];
+    chatList.innerHTML = "";
+    chats.forEach((chat) => {
+      const btn = document.createElement("button");
+      btn.textContent = `${chat.game} · ${chat.mode}`;
+      if (chat.game === currentGame && chat.mode === currentMode) {
+        btn.classList.add("active");
+      }
+      btn.addEventListener("click", () => {
+        startChat(chat.game, chat.mode);
+      });
+      chatList.appendChild(btn);
+    });
+  }
+
+  function createCatanBoard() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "catan-board";
+    catanBoardLayout.forEach((row) => {
+      const rowDiv = document.createElement("div");
+      rowDiv.className = "hex-row";
+      row.forEach((hex) => {
+        const hexDiv = document.createElement("div");
+        hexDiv.className = `hex resource-${hex.type}`;
+        hexDiv.innerHTML = `
+          <div>${hex.number ?? "⛰"}</div>
+          <small>${hex.label}</small>
+        `;
+        rowDiv.appendChild(hexDiv);
+      });
+      wrapper.appendChild(rowDiv);
+    });
+    return wrapper;
+  }
+
+  function renderMessages(game, mode) {
+    chatWindow.innerHTML = "";
+    if (game === "Catan") {
+      chatWindow.appendChild(createCatanBoard());
+    }
+    const convo = conversations[game]?.[mode] || [
+      { role: "user", text: `Can you tell me about ${game}?` },
+      { role: "ai", text: `Absolutely. Here's a quick rundown of ${game} and how you can get started. Ask follow-up questions anytime.` }
+    ];
+    convo.forEach((message) => {
+      const div = document.createElement("div");
+      div.className = `message ${message.role}`;
+      div.textContent = message.text;
+      chatWindow.appendChild(div);
+    });
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function startChat(game, mode) {
+    currentGame = game;
+    currentMode = mode;
+    chatTitle.textContent = `${game} · ${mode}`;
+    chatSubtitle.textContent = mode === "Guide"
+      ? `Guided breakdowns, best practices, and quick refreshers for ${game}.`
+      : mode === "Setup"
+        ? `Step-by-step table setup and player onboarding for ${game}.`
+        : `Ask anything about strategy, rulings, and in-game pivots for ${game}.`;
+    renderMessages(game, mode);
+    renderChatList();
+  }
+
+  function openModal() {
+    modalOverlay.style.display = "flex";
+    gameSearch.focus();
+    renderGameResults("");
+  }
+
+  function closeModal() {
+    modalOverlay.style.display = "none";
+    gameSearch.value = "";
+  }
+
+  function renderGameResults(query) {
+    const filtered = games.filter((game) =>
+      game.name.toLowerCase().includes(query.toLowerCase())
+    );
+    if (!filtered.length) {
+      gameResults.innerHTML = '<div class="empty-state">No games found. Try another search.</div>';
+      return;
+    }
+    gameResults.innerHTML = "";
+    filtered.forEach((game) => {
+      const card = document.createElement("div");
+      card.className = "game-card";
+      card.innerHTML = `
+        <h3>${game.name}</h3>
+        <p>${game.description}</p>
+        <small>${game.tags.join(" • ")}</small>
+      `;
+      const modeRow = document.createElement("div");
+      modeRow.className = "mode-buttons";
+      ["Guide", "Chat", "Setup"].forEach((mode) => {
+        const btn = document.createElement("button");
+        btn.textContent = mode;
+        btn.addEventListener("click", () => {
+          startChat(game.name, mode);
+          closeModal();
+        });
+        modeRow.appendChild(btn);
+      });
+      card.appendChild(modeRow);
+      gameResults.appendChild(card);
+    });
+  }
+
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+  });
+
+  modalOverlay.addEventListener("click", (event) => {
+    if (event.target === modalOverlay) {
+      closeModal();
+    }
+  });
+
+  newGameButtons.forEach((btn) => btn.addEventListener("click", openModal));
+  gameSearch.addEventListener("input", (event) => {
+    renderGameResults(event.target.value);
+  });
+
+  // Initialize
+  startChat(currentGame, currentMode);
+  renderChatList();
+</script>
+</body>
+</html>
